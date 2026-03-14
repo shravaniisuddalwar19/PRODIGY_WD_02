@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Stopwatch</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial;
+}
+
+body{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:#020617;
+color:white;
+transition:0.4s;
+}
+
+body.light{
+background:#f1f5f9;
+color:black;
+}
+
+.container{
+text-align:center;
+padding:40px;
+border-radius:20px;
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(10px);
+box-shadow:0 0 40px cyan;
+width:380px;
+}
+
+.circle{
+position:relative;
+width:220px;
+height:220px;
+margin:auto;
+}
+
+svg{
+transform:rotate(-90deg);
+}
+
+circle{
+fill:none;
+stroke-width:10;
+stroke-linecap:round;
+}
+
+.bg{
+stroke:rgba(255,255,255,0.2);
+}
+
+.progress{
+stroke:#00f7ff;
+stroke-dasharray:628;
+stroke-dashoffset:628;
+transition:0.1s;
+}
+
+#display{
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+font-size:28px;
+font-weight:bold;
+text-shadow:0 0 10px cyan,0 0 20px cyan;
+letter-spacing:2px;
+}
+
+.buttons{
+display:flex;
+justify-content:center;
+gap:10px;
+flex-wrap:wrap;
+margin-top:20px;
+}
+
+button{
+padding:10px 16px;
+border:none;
+border-radius:8px;
+font-size:14px;
+cursor:pointer;
+transition:0.3s;
+}
+
+button:hover{
+transform:scale(1.1);
+}
+
+.start{background:#22c55e;}
+.pause{background:#f59e0b;}
+.reset{background:#ef4444;}
+.lap{background:#3b82f6;}
+.mode{background:#8b5cf6;}
+.download{background:#06b6d4;}
+
+ul{
+margin-top:15px;
+max-height:130px;
+overflow:auto;
+}
+
+li{
+padding:6px;
+margin:4px;
+background:rgba(255,255,255,0.15);
+border-radius:5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2> ⌚ Stopwatch</h2>
+
+<div class="circle">
+
+<svg width="220" height="220">
+
+<circle class="bg" cx="110" cy="110" r="100"></circle>
+
+<circle class="progress" id="progress"
+cx="110" cy="110" r="100"></circle>
+
+</svg>
+
+<div id="display">00:00:00:00</div>
+
+</div>
+
+<div class="buttons">
+
+<button class="start" onclick="start()">Start</button>
+<button class="pause" onclick="pause()">Pause</button>
+<button class="reset" onclick="reset()">Reset</button>
+<button class="lap" onclick="lap()">Lap</button>
+<button class="mode" onclick="toggleMode()">Mode</button>
+<button class="download" onclick="download()">Download</button>
+
+</div>
+
+<ul id="laps"></ul>
+
+</div>
+
+<audio id="beep">
+<source src="https://www.soundjay.com/buttons/sounds/button-16.mp3">
+</audio>
+
+<script>
+
+let ms=0,seconds=0,minutes=0,hours=0;
+let timer=null;
+let lapCount=0;
+
+const circumference=628;
+
+const lapsList=document.getElementById("laps");
+
+function updateDisplay(){
+
+let h=hours<10?"0"+hours:hours;
+let m=minutes<10?"0"+minutes:minutes;
+let s=seconds<10?"0"+seconds:seconds;
+let milli=ms<10?"0"+ms:ms;
+
+let time=h+":"+m+":"+s+":"+milli;
+
+document.getElementById("display").innerText=time;
+
+let progress=(seconds%60)/60;
+
+document.getElementById("progress").style.strokeDashoffset=
+circumference-(progress*circumference);
+
+}
+
+function run(){
+
+ms++;
+
+if(ms==100){
+ms=0;
+seconds++;
+}
+
+if(seconds==60){
+seconds=0;
+minutes++;
+}
+
+if(minutes==60){
+minutes=0;
+hours++;
+}
+
+updateDisplay();
+
+}
+
+function start(){
+
+if(timer!==null)return;
+
+timer=setInterval(run,10);
+
+}
+
+function pause(){
+
+clearInterval(timer);
+timer=null;
+
+}
+
+function reset(){
+
+clearInterval(timer);
+timer=null;
+
+ms=0;
+seconds=0;
+minutes=0;
+hours=0;
+lapCount=0;
+
+updateDisplay();
+
+lapsList.innerHTML="";
+
+localStorage.removeItem("laps");
+
+document.getElementById("progress").style.strokeDashoffset=628;
+
+}
+
+function lap(){
+
+lapCount++;
+
+let lapTime=document.getElementById("display").innerText;
+
+let li=document.createElement("li");
+
+li.innerText="Lap "+lapCount+" : "+lapTime;
+
+lapsList.appendChild(li);
+
+document.getElementById("beep").play();
+
+saveLaps();
+
+}
+
+function toggleMode(){
+
+document.body.classList.toggle("light");
+
+}
+
+function saveLaps(){
+
+let laps=[];
+
+document.querySelectorAll("#laps li").forEach(li=>{
+laps.push(li.innerText);
+});
+
+localStorage.setItem("laps",JSON.stringify(laps));
+
+}
+
+function loadLaps(){
+
+let laps=JSON.parse(localStorage.getItem("laps"))||[];
+
+laps.forEach(text=>{
+let li=document.createElement("li");
+li.innerText=text;
+lapsList.appendChild(li);
+lapCount++;
+});
+
+}
+
+function download(){
+
+let data="Lap Times\n";
+
+document.querySelectorAll("#laps li").forEach(li=>{
+data+=li.innerText+"\n";
+});
+
+let blob=new Blob([data],{type:"text/csv"});
+
+let a=document.createElement("a");
+
+a.href=URL.createObjectURL(blob);
+
+a.download="lap_times.csv";
+
+a.click();
+
+}
+
+/* keyboard shortcuts */
+
+document.addEventListener("keydown",function(e){
+
+if(e.code==="Space"){
+if(timer) pause(); else start();
+}
+
+if(e.key==="r") reset();
+
+if(e.key==="l") lap();
+
+});
+
+loadLaps();
+
+</script>
+
+</body>
+</html>
